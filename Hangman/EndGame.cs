@@ -13,11 +13,13 @@ namespace Hangman
     public partial class EndGame : Form
     {
         private Form previousGameWindow;
+        public bool onePlayerGame;
 
-        public EndGame(Form previousGameWindow)
+        public EndGame(Form previousGameWindow, bool onePlayer)
         {
             InitializeComponent();
             this.previousGameWindow = previousGameWindow;
+            onePlayerGame = onePlayer;
         }
 
         public void SetMessage(string message)
@@ -30,7 +32,7 @@ namespace Hangman
             this.Close();
             previousGameWindow.Close();
 
-            Play1P playForm = new Play1P();
+            Play1P playForm = new Play1P(onePlayerGame);
             playForm.Show();
         }
 

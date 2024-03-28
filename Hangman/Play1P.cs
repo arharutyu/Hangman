@@ -13,23 +13,67 @@ namespace Hangman
 
     public partial class Play1P : Form
     {
-        private Play game;
+        public Play game;
         string displayWord = "";
         Play.WordInPlay[] wordArray;
         string word;
+        bool onePlayerGame;
 
-        public Play1P()
+        public Play1P(bool onePlayer)
         {
             InitializeComponent();
             game = new Play();
-            StartNewGame();
+            onePlayerGame = onePlayer;
+            StartNewGame(onePlayer);
+            keyboardUC1.KeyPressed += KeyboardUC_KeyPressed;
+            hangmanPictureUC1.IncorrectGuessesChanged += HangmanPictureUC_IncorrectGuessesChanged;
+            if (Play.difficulty == "Hard")
+            {
+                definitionButton.Visible = false;
+                synonymsButton.Visible = false;
+            }
         }
 
-        private void StartNewGame()
+        private void StartNewGame(bool onePlayer)
         {
-            // Get a random word from the Play class
-            word = game.GetWord();
-            Console.WriteLine(word);
+            if (onePlayer)
+            {
+                // Get a random word from the Play class
+                game.GetWord();
+                while (game.awaitingApi)
+                {
+                    Application.DoEvents();
+                }
+                word = game.word;
+                Console.WriteLine(word);
+            }
+            else
+            {
+                // show form to enter word
+                using (PvPEnterWord enterWordForm = new PvPEnterWord())
+                {
+                    // Show the PvPEnterWord form
+                    enterWordForm.ShowDialog();
+
+                    // Retrieve the entered word after the form is closed
+                    string enteredWord = enterWordForm.EnteredWord;
+                    string definition = enterWordForm.Definition;
+                    string synonyms = enterWordForm.Synonyms;
+
+                    if (!string.IsNullOrEmpty(enteredWord))
+                    {
+                        word = game.SetWord(enteredWord);
+                    }
+                    if (!string.IsNullOrEmpty(definition))
+                    {
+                        game.definition = definition;
+                    }
+                    if (!string.IsNullOrEmpty (synonyms))
+                    {
+                        game.synonyms = synonyms;
+                    }
+                }
+            }
 
             wordArray = game.GetWordInPlayArray(word);
 
@@ -40,18 +84,19 @@ namespace Hangman
             lblGuessesLeft.Text = game.incorrectGuessesLeft.ToString();
 
             lblWordInPlay.Text = displayWord;
+
+            if (game.definition == null)
+            {
+                definitionButton.Enabled = false;
+            }
+            if (game.synonyms ==  null)
+            {
+                synonymsButton.Enabled = false;
+            }
         }
 
-        private void AlphabetButtonClick(object sender, EventArgs e)
+        private void KeyboardUC_KeyPressed(object sender, string letter)
         {
-            // Cast the sender object to a Button
-            Button clickedButton = (Button)sender;
-            clickedButton.Enabled = false;
-
-            // Get the text of the clicked button
-            string letter = clickedButton.Text.ToLower();
-            Console.WriteLine(letter);
-
             int letterGuessed = 0;
 
             foreach (Play.WordInPlay letterInWordInPlay in wordArray)
@@ -61,6 +106,7 @@ namespace Hangman
                     letterInWordInPlay.Guessed = true;
                     game.lettersLeftToGuess -= 1;
                     letterGuessed += 1;
+                    Console.WriteLine(game.lettersLeftToGuess);
                 }
             }
 
@@ -68,43 +114,48 @@ namespace Hangman
             {
                 game.incorrectGuessesLeft -= 1;
                 lblGuessesLeft.Text = game.incorrectGuessesLeft.ToString();
-                switch (game.incorrectGuessesLeft)
-                {
-                    case 9:
-                        hangmanPicture.Image = Properties.Resources._9;
-                        break;
-                    case 8:
-                        hangmanPicture.Image = Properties.Resources._8;
-                        break;
-                    case 7:
-                        hangmanPicture.Image = Properties.Resources._7;
-                        break;
-                    case 6:
-                        hangmanPicture.Image = Properties.Resources._6;
-                        break;
-                    case 5:
-                        hangmanPicture.Image = Properties.Resources._5;
-                        break;
-                    case 4:
-                        hangmanPicture.Image = Properties.Resources._4;
-                        break;
-                    case 3:
-                        hangmanPicture.Image = Properties.Resources._3;
-                        break;
-                    case 2:
-                        hangmanPicture.Image = Properties.Resources._2;
-                        break;
-                    case 1:
-                        hangmanPicture.Image = Properties.Resources._1;
-                        break;
-                    case 0:
-                        hangmanPicture.Image = Properties.Resources._0;
-                        break;
-
-                }
-                
+                // Raise the event to notify the HangmanPictureUC
+                hangmanPictureUC1.OnIncorrectGuessesChanged();
             }
             RefreshDisplayWord();
+        }
+        private void HangmanPictureUC_IncorrectGuessesChanged(object sender, EventArgs e)
+        {
+            // Handle the event by updating the image viewer
+            int incorrectGuessesLeft = game.incorrectGuessesLeft;
+            switch (incorrectGuessesLeft)
+            {
+                case 9:
+                    hangmanPictureUC1.HangmanImage = Properties.Resources._9;
+                    break;
+                case 8:
+                    hangmanPictureUC1.HangmanImage = Properties.Resources._8;
+                    break;
+                case 7:
+                    hangmanPictureUC1.HangmanImage = Properties.Resources._7;
+                    break;
+                case 6:
+                    hangmanPictureUC1.HangmanImage = Properties.Resources._6;
+                    break;
+                case 5:
+                    hangmanPictureUC1.HangmanImage = Properties.Resources._5;
+                    break;
+                case 4:
+                    hangmanPictureUC1.HangmanImage = Properties.Resources._4;
+                    break;
+                case 3:
+                    hangmanPictureUC1.HangmanImage = Properties.Resources._3;
+                    break;
+                case 2:
+                    hangmanPictureUC1.HangmanImage = Properties.Resources._2;
+                    break;
+                case 1:
+                    hangmanPictureUC1.HangmanImage = Properties.Resources._1;
+                    break;
+                case 0:
+                    hangmanPictureUC1.HangmanImage = Properties.Resources._0;
+                    break;
+            }
         }
 
         private void RefreshDisplayWord()
@@ -137,11 +188,21 @@ namespace Hangman
 
         private void ShowEndGameForm(string message)
         {
-            EndGame endGameForm = new EndGame(this);
+            EndGame endGameForm = new EndGame(this, onePlayerGame);
 
             endGameForm.SetMessage(message);
 
             endGameForm.ShowDialog(); 
+        }
+
+        private void definitionButton_Click(object sender, EventArgs e)
+        {
+            MessageBox.Show("Definition: " + game.definition);
+        }
+
+        private void synonymsButton_Click(object sender, EventArgs e)
+        {
+            MessageBox.Show("Synonyms: " + game.synonyms);
         }
     }
 }
